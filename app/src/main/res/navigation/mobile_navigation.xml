@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mobile_navigation"
+    app:startDestination="@+id/navigation_status">
+
+    <fragment
+        android:id="@+id/navigation_status"
+        android:name="com.mobtechi.mtsaver.ui.StatusFragment"
+        tools:layout="@layout/fragment_reel" />
+
+    <fragment
+        android:id="@+id/navigation_reel"
+        android:name="com.mobtechi.mtsaver.ui.ReelFragment"
+        tools:layout="@layout/fragment_status" />
+
+    <fragment
+        android:id="@+id/navigation_saver"
+        android:name="com.mobtechi.mtsaver.ui.SaverFragment"
+        tools:layout="@layout/fragment_saver" />
+</navigation>
