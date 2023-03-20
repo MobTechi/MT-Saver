@@ -6,12 +6,13 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.mobtechi.mtsaver.Functions.glideImageSet
+import com.mobtechi.mtsaver.Functions.openPreviewActivity
 import com.mobtechi.mtsaver.Functions.shareFile
+import com.mobtechi.mtsaver.Functions.toast
 import com.mobtechi.mtsaver.R
 import java.io.File
 
@@ -57,13 +58,14 @@ class SaverAdapter(private var context: Activity) :
         holder.playIcon.visibility =
             if (data.extension == "3gp" || data.extension == "mp4") View.VISIBLE else View.GONE
 
-        Glide.with(context)
-            .load(data.path)
-            .placeholder(R.drawable.loader)
-            .into(holder.statusImage)
+        glideImageSet(context, data.path, holder.statusImage)
+
+        holder.statusImage.setOnClickListener {
+            openPreviewActivity(context, data.path)
+        }
 
         holder.moreOption.setOnClickListener {
-            val dialog = BottomSheetDialog(context)
+            val dialog = BottomSheetDialog(context, R.style.BottomSheetStyle)
             val view = LayoutInflater.from(context).inflate(R.layout.bottom_sheet_option, null)
             val btnShare = view.findViewById<FloatingActionButton>(R.id.share)
             val btnDelete = view.findViewById<FloatingActionButton>(R.id.save)
@@ -79,7 +81,7 @@ class SaverAdapter(private var context: Activity) :
                 if (data.exists()) {
                     data.delete()
                     dataList.removeAt(position)
-                    Toast.makeText(context, "Deleted!", Toast.LENGTH_SHORT).show()
+                    toast(context, "Deleted!")
                     this.notifyDataSetChanged()
                 }
             }

@@ -9,7 +9,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TabHost
 import android.widget.TabHost.TabSpec
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -20,10 +19,10 @@ import com.mobtechi.mtsaver.adapter.GridSpacingItemDecoration
 import com.mobtechi.mtsaver.adapter.SaverAdapter
 import com.mobtechi.mtsaver.databinding.FragmentSaverBinding
 
-
 class SaverFragment : Fragment() {
 
-    private var _binding: FragmentSaverBinding? = null
+    private var _binding: com.mobtechi.mtsaver.databinding.FragmentSaverBinding? = null
+    private lateinit var saverAdapter: SaverAdapter
 
     // This property is only valid between onCreateView and
     // onDestroyView.
@@ -39,18 +38,18 @@ class SaverFragment : Fragment() {
         _binding = FragmentSaverBinding.inflate(inflater, container, false)
         val root: View = binding.root
 
-        val tabHost = root.findViewById<TabHost>(R.id.tabHost)
-        tabHost.setup()
-
-        var spec: TabSpec = tabHost.newTabSpec(getString(R.string.title_status))
-        spec.setContent(R.id.status)
-        spec.setIndicator(getString(R.string.title_status))
-        tabHost.addTab(spec)
-
-        spec = tabHost.newTabSpec(getString(R.string.title_reel))
-        spec.setContent(R.id.reel)
-        spec.setIndicator(getString(R.string.title_reel))
-        tabHost.addTab(spec)
+//        val tabHost = root.findViewById<TabHost>(R.id.tabHost)
+//        tabHost.setup()
+//
+//        var spec: TabSpec = tabHost.newTabSpec(getString(R.string.title_status))
+//        spec.setContent(R.id.status)
+//        spec.setIndicator(getString(R.string.title_status))
+//        tabHost.addTab(spec)
+//
+//        spec = tabHost.newTabSpec(getString(R.string.title_reel))
+//        spec.setContent(R.id.reel)
+//        spec.setIndicator(getString(R.string.title_reel))
+//        tabHost.addTab(spec)
 
         // status list
         val savedStatusPath = getAppPath() + "/status"
@@ -58,7 +57,7 @@ class SaverFragment : Fragment() {
         if (savedStatusList != null) {
             // show the status in the recycler view
             val statusRecyclerView: RecyclerView = root.findViewById(R.id.statusRecyclerView)
-            val saverAdapter = SaverAdapter(requireActivity())
+            saverAdapter = SaverAdapter(requireActivity())
             saverAdapter.setDataList(savedStatusList)
             statusRecyclerView.apply {
                 layoutManager = GridLayoutManager(requireContext(), 2)
@@ -74,27 +73,32 @@ class SaverFragment : Fragment() {
         }
 
         // reel list
-        val savedReelPath = getAppPath() + "/reels"
-        val savedReelList = getStatusList(requireActivity(), savedReelPath)
-        Toast.makeText(context, "savedReelList ${savedReelList?.size}", Toast.LENGTH_SHORT).show()
-        if (savedReelList != null) {
-            // show the status in the recycler view
-            val reelRecyclerView: RecyclerView = root.findViewById(R.id.reelRecyclerView)
-            val saverAdapter = SaverAdapter(requireActivity())
-            saverAdapter.setDataList(savedReelList)
-            reelRecyclerView.apply {
-                layoutManager = GridLayoutManager(requireContext(), 2)
-                adapter = saverAdapter
-                addItemDecoration(
-                    GridSpacingItemDecoration(
-                        2,
-                        25,
-                        true
-                    )
-                )
-            }
-        }
+//        val savedReelPath = getAppPath() + "/reels"
+//        val savedReelList = getStatusList(requireActivity(), savedReelPath)
+//        if (savedReelList != null) {
+//            // show the status in the recycler view
+//            val reelRecyclerView: RecyclerView = root.findViewById(R.id.reelRecyclerView)
+//            saverAdapter = SaverAdapter(requireActivity())
+//            saverAdapter.setDataList(savedReelList)
+//            reelRecyclerView.apply {
+//                layoutManager = GridLayoutManager(requireContext(), 2)
+//                adapter = saverAdapter
+//                addItemDecoration(
+//                    GridSpacingItemDecoration(
+//                        2,
+//                        25,
+//                        true
+//                    )
+//                )
+//            }
+//        }
         return root
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    override fun onResume() {
+        super.onResume()
+        saverAdapter.notifyDataSetChanged()
     }
 
     override fun onDestroyView() {

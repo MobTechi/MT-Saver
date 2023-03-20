@@ -8,12 +8,12 @@
     <fragment
         android:id="@+id/navigation_status"
         android:name="com.mobtechi.mtsaver.ui.StatusFragment"
-        tools:layout="@layout/fragment_reel" />
+        tools:layout="@layout/fragment_status" />
 
     <fragment
         android:id="@+id/navigation_reel"
         android:name="com.mobtechi.mtsaver.ui.ReelFragment"
-        tools:layout="@layout/fragment_status" />
+        tools:layout="@layout/fragment_reel" />
 
     <fragment
         android:id="@+id/navigation_saver"

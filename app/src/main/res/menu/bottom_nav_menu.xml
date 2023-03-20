@@ -9,6 +9,7 @@
     <item
         android:id="@+id/navigation_reel"
         android:icon="@drawable/ic_reel"
+        android:visible="false"
         android:title="@string/title_reel" />
 
     <item

@@ -32,9 +32,10 @@
                 android:layout_height="wrap_content"
                 android:backgroundTint="@color/blue"
                 android:hint="@string/past_link_here"
+                android:importantForAutofill="no"
                 android:singleLine="true"
                 android:textColor="@color/black"
-                android:textColorHint="@color/gray" />
+                tools:ignore="TextFields" />
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -43,20 +44,56 @@
                 android:orientation="horizontal">
 
                 <Button
-                    android:id="@+id/clearLink"
+                    android:id="@+id/pasteLink"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="30sp"
-                    android:text="@string/clear" />
+                    android:text="@string/paste"
+                    tools:ignore="ButtonStyle" />
 
                 <Button
                     android:id="@+id/searchReel"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/search" />
+                    android:text="@string/search"
+                    tools:ignore="ButtonStyle" />
             </LinearLayout>
 
         </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/loadingCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/linkCard"
+        android:layout_marginTop="20sp"
+        android:visibility="gone"
+        app:cardBackgroundColor="@color/white"
+        app:cardCornerRadius="10sp">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <ProgressBar
+                android:id="@+id/loader"
+                style="@style/Widget.AppCompat.ProgressBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/loadingMessage"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_marginStart="30sp"
+                android:layout_toEndOf="@+id/loader"
+                android:text="@string/fetching_details"
+                android:textSize="20sp" />
+        </RelativeLayout>
     </androidx.cardview.widget.CardView>
 
     <androidx.cardview.widget.CardView
@@ -74,7 +111,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical"
-            android:padding="20dp">
+            android:padding="10dp">
 
             <TextView
                 android:id="@+id/reelTitle"
@@ -89,20 +126,58 @@
                 android:textColor="@color/black"
                 android:textSize="20sp" />
 
-            <Button
-                android:id="@+id/downloadReel"
+            <LinearLayout
+                android:id="@+id/downloadReelLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_below="@+id/reelTitle"
-                android:text="@string/download" />
+                android:gravity="center_horizontal"
+                android:orientation="horizontal">
 
-            <ImageView
-                android:id="@+id/reelImg"
-                android:layout_width="fill_parent"
-                android:layout_height="fill_parent"
-                android:layout_below="@+id/downloadReel"
-                android:layout_marginTop="10sp"
-                android:layout_marginBottom="10dp" />
+                <Button
+                    android:id="@+id/downloadReel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/download" />
+
+                <Button
+                    android:id="@+id/downloadAllReel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10sp"
+                    android:text="@string/download_all" />
+
+            </LinearLayout>
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_below="@+id/downloadReelLayout">
+
+                <ImageView
+                    android:id="@+id/imageSlider"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+
+                <ImageView
+                    android:id="@+id/prevSlide"
+                    android:layout_width="36sp"
+                    android:layout_height="36sp"
+                    android:layout_centerVertical="true"
+                    android:background="@drawable/menu_round_btn"
+                    android:src="@drawable/ic_prev_nav"
+                    android:visibility="gone" />
+
+                <ImageView
+                    android:id="@+id/nextSlide"
+                    android:layout_width="36sp"
+                    android:layout_height="36sp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:background="@drawable/menu_round_btn"
+                    android:src="@drawable/ic_next_nav"
+                    android:visibility="gone" />
+            </RelativeLayout>
 
         </RelativeLayout>
     </androidx.cardview.widget.CardView>

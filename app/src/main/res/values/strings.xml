@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">MT Saver</string>
-    <string name="app_description">Status and Reels Saver</string>
+    <string name="app_description">Status Saver</string>
+    <!--    <string name="app_description">Status and Reels Saver</string>-->
 
     // side navigation
     <string name="rate_app">Rate App</string>
@@ -24,10 +25,12 @@
 
     // reel fragment
     <string name="past_link_here">Paste reel link here</string>
-    <string name="please_enter_link">Please enter the link</string>
+    <string name="please_enter_link">Please enter the valid link</string>
     <string name="search">Search</string>
+    <string name="paste">Paste</string>
     <string name="clear">Clear</string>
     <string name="download">Download</string>
+    <string name="download_all">Download All</string>
     <string name="fetching_details">Fetching details!</string>
 
     // no internet

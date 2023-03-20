@@ -2,6 +2,7 @@ package com.mobtechi.mtsaver
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -11,7 +12,6 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.Toast
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -26,6 +26,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.navigation.NavigationView
 import com.mobtechi.mtsaver.Functions.checkStoragePermission
 import com.mobtechi.mtsaver.Functions.getAppPath
+import com.mobtechi.mtsaver.Functions.toast
 import com.mobtechi.mtsaver.databinding.AppActivityBinding
 import java.io.File
 
@@ -43,6 +44,10 @@ class AppActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelected
         setContentView(binding.root)
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
 
+        initAppPage()
+    }
+
+    private fun initAppPage() {
         val toolbar = binding.appMainPage.toolbar
         setSupportActionBar(toolbar)
         drawerLayout = binding.drawerLayout
@@ -63,61 +68,41 @@ class AppActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelected
     }
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
-        val id = item.itemId
-        if (id != R.id.appVersion) {
-            when (item.itemId) {
-                R.id.rateApp -> {
-
-                }
-                R.id.moreApp -> {
-                    try {
-                        val developerPageLink =
-                            "https://play.google.com/store/apps/dev?id=7579037844327234040"
-                        val developerPageIntent =
-                            Intent(Intent.ACTION_VIEW, Uri.parse(developerPageLink))
-                        ContextCompat.startActivity(this, developerPageIntent, null)
-                    } catch (_: Exception) {
-                    }
-                }
-                R.id.privacy_policy -> {
-                    val policyURL = "https://mobtechi.com/$packageName/privacy-policy"
-                    val builder = AlertDialog.Builder(this)
-                    builder.setTitle(R.string.privacy_policy)
-                    builder.setMessage(R.string.privacy_description)
-                    builder.setIcon(R.mipmap.ic_launcher)
-                    builder.setPositiveButton("yes") { dialogInterface, _ ->
-                        dialogInterface.dismiss()
-                        try {
-                            val policyIntent = Intent(Intent.ACTION_VIEW, Uri.parse(policyURL))
-                            ContextCompat.startActivity(this, policyIntent, null)
-                        } catch (e: Exception) {
-                            Toast.makeText(
-                                this,
-                                "Something wrong! visit our privacy policy page url: $policyURL",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    }
-                    builder.setNegativeButton("No") { dialogInterface, _ ->
-                        dialogInterface.dismiss()
-                    }
-                    // Create the AlertDialog
-                    val alertDialog: AlertDialog = builder.create()
-                    alertDialog.show()
-                }
-                R.id.exit -> {
-                    finish()
+        when (item.itemId) {
+            R.id.rateApp -> {
+                try {
+                    val url = "market://details?id=$packageName"
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                } catch (e: ActivityNotFoundException) {
+                    val url = "https://play.google.com/store/apps/details?id=$packageName"
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                 }
             }
-            drawerLayout.closeDrawer(GravityCompat.START)
+            R.id.moreApp -> {
+                try {
+                    val developerPageLink =
+                        "https://play.google.com/store/apps/dev?id=7579037844327234040"
+                    val developerPageIntent =
+                        Intent(Intent.ACTION_VIEW, Uri.parse(developerPageLink))
+                    ContextCompat.startActivity(this, developerPageIntent, null)
+                } catch (_: Exception) {
+                }
+            }
+            R.id.privacy_policy -> {
+                showPrivacyPolicyDialog()
+            }
+            R.id.exit -> {
+                finish()
+            }
         }
+        drawerLayout.closeDrawer(GravityCompat.START)
         return true
     }
 
     @SuppressLint("DetachAndAttachSameFragment")
     override fun onResume() {
         super.onResume()
-        // storagePermissionLayout
+        // check the storage permission
         val storagePermissionLayout: LinearLayout = findViewById(R.id.storage_permission)
         // checkStoragePermission
         if (checkStoragePermission(this)) {
@@ -136,6 +121,35 @@ class AppActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelected
         grantAccessBtn.setOnClickListener {
             askStoragePermission()
         }
+
+        // privacy policy button
+        val privacyPolicyBtn = findViewById<Button>(R.id.privacy_policy)
+        privacyPolicyBtn.setOnClickListener {
+            showPrivacyPolicyDialog()
+        }
+    }
+
+    private fun showPrivacyPolicyDialog() {
+        val policyURL = "https://mobtechi.com/$packageName/privacy-policy"
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle(R.string.privacy_policy)
+        builder.setMessage(R.string.privacy_description)
+        builder.setIcon(R.mipmap.ic_launcher)
+        builder.setPositiveButton("yes") { dialogInterface, _ ->
+            dialogInterface.dismiss()
+            try {
+                val policyIntent = Intent(Intent.ACTION_VIEW, Uri.parse(policyURL))
+                ContextCompat.startActivity(this, policyIntent, null)
+            } catch (e: Exception) {
+                toast(this, "Something wrong! visit our privacy policy page url: $policyURL")
+            }
+        }
+        builder.setNegativeButton("No") { dialogInterface, _ ->
+            dialogInterface.dismiss()
+        }
+        // Create the AlertDialog
+        val alertDialog: AlertDialog = builder.create()
+        alertDialog.show()
     }
 
     private fun askStoragePermission() {
@@ -144,7 +158,6 @@ class AppActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelected
             val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
             intent.data = Uri.fromParts("package", packageName, null)
             startActivityForResult(intent, storagePermissionCode)
-
         } else {
             //below android 11
             ActivityCompat.requestPermissions(
