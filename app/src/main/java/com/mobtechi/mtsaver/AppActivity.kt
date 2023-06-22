@@ -1,13 +1,11 @@
 package com.mobtechi.mtsaver
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.view.MenuItem
 import android.view.View
 import android.widget.Button
@@ -16,7 +14,6 @@ import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
@@ -24,8 +21,12 @@ import androidx.navigation.findNavController
 import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.navigation.NavigationView
+import com.mobtechi.mtsaver.Constants.higherSdkStoragePermissionCode
+import com.mobtechi.mtsaver.Constants.lowerSdkStoragePermissionCode
+import com.mobtechi.mtsaver.Functions.askStoragePermission
 import com.mobtechi.mtsaver.Functions.checkStoragePermission
 import com.mobtechi.mtsaver.Functions.getAppPath
+import com.mobtechi.mtsaver.Functions.saveStoragePermissionPref
 import com.mobtechi.mtsaver.Functions.toast
 import com.mobtechi.mtsaver.databinding.AppActivityBinding
 import java.io.File
@@ -35,7 +36,6 @@ class AppActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelected
 
     private lateinit var binding: AppActivityBinding
     private lateinit var drawerLayout: DrawerLayout
-    private val storagePermissionCode = 100
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,6 +65,7 @@ class AppActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelected
             R.string.navigation_drawer_open,
             R.string.navigation_drawer_close
         )
+        handleStoragePermission()
     }
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
@@ -99,9 +100,7 @@ class AppActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelected
         return true
     }
 
-    @SuppressLint("DetachAndAttachSameFragment")
-    override fun onResume() {
-        super.onResume()
+    private fun handleStoragePermission() {
         // check the storage permission
         val storagePermissionLayout: LinearLayout = findViewById(R.id.storage_permission)
         // checkStoragePermission
@@ -112,6 +111,10 @@ class AppActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelected
             if (!appFolder.exists()) {
                 appFolder.mkdir()
             }
+            // after permission given load the status fragment
+            val navController =
+                findNavController(R.id.nav_host_fragment_activity_main)
+            navController.navigate(R.id.navigation_status)
         } else {
             storagePermissionLayout.visibility = View.VISIBLE
         }
@@ -119,7 +122,7 @@ class AppActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelected
         // grant access permission button
         val grantAccessBtn = findViewById<Button>(R.id.grant_access)
         grantAccessBtn.setOnClickListener {
-            askStoragePermission()
+            askStoragePermission(this)
         }
 
         // privacy policy button
@@ -152,27 +155,39 @@ class AppActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelected
         alertDialog.show()
     }
 
-    private fun askStoragePermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            //request for the all file access permission
-            val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-            intent.data = Uri.fromParts("package", packageName, null)
-            startActivityForResult(intent, storagePermissionCode)
-        } else {
-            //below android 11
-            ActivityCompat.requestPermissions(
-                this, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), storagePermissionCode
-            )
-        }
-    }
-
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == storagePermissionCode) {
-            // after permission given load the status fragment
-            val navController = findNavController(R.id.nav_host_fragment_activity_main)
-            navController.navigate(R.id.navigation_status)
+        if (requestCode == higherSdkStoragePermissionCode) {
+            if (resultCode == RESULT_OK) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val uri = data!!.data
+                    if (uri != null) {
+                        val uriPath = uri.path
+                        if (uriPath != null && uriPath.endsWith(".Statuses")) {
+                            // after permission store into preference when android 30 or above
+                            saveStoragePermissionPref(this, true)
+                        } else {
+                            // dialog when user gave wrong path
+                            showWrongPathDialog()
+                        }
+                    }
+                }
+            }
+            handleStoragePermission()
+        } else if (requestCode == lowerSdkStoragePermissionCode) {
+            handleStoragePermission()
         }
+    }
+
+    private fun showWrongPathDialog() {
+        val builder = AlertDialog.Builder(this)
+        builder.setCancelable(false)
+            .setTitle(getString(R.string.storage_permission))
+            .setMessage(getString(R.string.wrong_storage_permission_description))
+            .setPositiveButton(getString(R.string.exit)) { dialogInterface, _ ->
+                dialogInterface.dismiss()
+            }
+        builder.show()
     }
 }

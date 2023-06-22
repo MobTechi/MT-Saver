@@ -30,6 +30,8 @@ import com.mobtechi.mtsaver.Constants.reelDownloadAPI
 import com.mobtechi.mtsaver.Constants.tooManyRequestErrorCode
 import com.mobtechi.mtsaver.Constants.tooManyRequestErrorMessage
 import com.mobtechi.mtsaver.Functions.checkIsReelLink
+import com.mobtechi.mtsaver.Functions.downloadFile
+import com.mobtechi.mtsaver.Functions.getContentType
 import com.mobtechi.mtsaver.Functions.glideImageSet
 import com.mobtechi.mtsaver.Functions.hideSoftKeyboard
 import com.mobtechi.mtsaver.Functions.md5
@@ -41,8 +43,15 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-
 class ReelFragment : Fragment() {
+
+    enum class ReelKey(val key: String) {
+        Id("id"),
+        Thumbnail("thumbnail"),
+        Media("media"),
+        Type("Type"),
+        Title("title")
+    }
 
     private var okHttpCall: Call? = null
     private var _binding: FragmentReelBinding? = null
@@ -50,6 +59,8 @@ class ReelFragment : Fragment() {
     // value properties
     private var currentPosition = 0
     private var postSize = 0
+    private val visible = View.VISIBLE
+    private val gone = View.GONE
 
     // This property is only valid between onCreateView and
     // onDestroyView.
@@ -90,8 +101,8 @@ class ReelFragment : Fragment() {
                 pasteLink.text = getString(R.string.paste)
                 linkEditText.setText("")
                 linkEditText.clearFocus()
-                loadingCard.visibility = View.GONE
-                downloadCard.visibility = View.GONE
+                loadingCard.visibility = gone
+                downloadCard.visibility = gone
                 currentPosition = 0
                 postSize = 0
                 // if already requested the reel, cancel the http call request
@@ -101,7 +112,7 @@ class ReelFragment : Fragment() {
                     requireContext().getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
                 if (clipboard.text.isNotEmpty() && checkIsReelLink(clipboard.text.toString())) {
                     linkEditText.setText(clipboard.text.toString())
-                    linkEditText.setSelection(linkEditText.text.length - 1)
+                    linkEditText.clearFocus()
                     pasteLink.text = getString(R.string.clear)
                     hideSoftKeyboard(requireContext(), it)
                 }
@@ -114,12 +125,12 @@ class ReelFragment : Fragment() {
                 val reelLink = linkEditText.text.toString()
                 if (TextUtils.isEmpty(reelLink) || !checkIsReelLink(reelLink)) {
                     linkEditText.error = getString(R.string.please_enter_link)
-                    downloadCard.visibility = View.GONE
+                    downloadCard.visibility = gone
                 } else {
                     // if already requested the reel, cancel the http call request
                     cancelOkHttp()
                     // show the fetching loader
-                    loadingCard.visibility = View.VISIBLE
+                    loadingCard.visibility = visible
                     loadingMessage.text = getString(R.string.fetching_details)
                     linkEditText.clearFocus()
                     // fetch the videos
@@ -169,98 +180,105 @@ class ReelFragment : Fragment() {
         val imageSlider = root.findViewById<ImageView>(R.id.imageSlider)
         val prevSlide = root.findViewById<ImageView>(R.id.prevSlide)
         val nextSlide = root.findViewById<ImageView>(R.id.nextSlide)
-
-        val reelName = reelDetails.getString("title")
-        val reelMediaList = ArrayList<String>()
-        try {
-            val reelMedia = reelDetails.getJSONArray("media")
-            (0 until reelMedia.length()).forEach { i ->
-                val media = reelMedia.getString(i)
-                reelMediaList.add(media)
+        val reelMediaList = ArrayList<JSONObject>()
+        if (reelDetails.getString("Type").equals("Carousel")) {
+            val reelMedias = reelDetails.getJSONArray("media_with_thumb")
+            (0 until reelMedias.length()).forEach { i ->
+                val reelMedia = reelMedias.getJSONObject(i)
+                val reelObject = JSONObject()
+                reelObject.put(ReelKey.Id.key, md5(reelMedia.getString(ReelKey.Media.key)))
+                reelObject.put(ReelKey.Thumbnail.key, reelMedia.getString(ReelKey.Thumbnail.key))
+                reelObject.put(ReelKey.Media.key, reelMedia.getString(ReelKey.Media.key))
+                reelObject.put(ReelKey.Type.key, reelMedia.getString(ReelKey.Type.key))
+                reelMediaList.add(reelObject)
             }
-        } catch (e: Exception) {
-            val reelMediaLink = reelDetails.getString("media")
-            reelMediaList.add(reelMediaLink)
+        } else {
+            val reelObject = JSONObject()
+            reelObject.put(ReelKey.Id.key, md5(reelDetails.getString(ReelKey.Media.key)))
+            reelObject.put(ReelKey.Thumbnail.key, reelDetails.getString(ReelKey.Thumbnail.key))
+            reelObject.put(ReelKey.Media.key, reelDetails.getString(ReelKey.Media.key))
+            reelObject.put(ReelKey.Type.key, reelDetails.getString(ReelKey.Type.key))
+            reelMediaList.add(reelObject)
         }
-
         postSize = reelMediaList.size
 
         // run on ui thread to load properties in fragment
         requireActivity().runOnUiThread {
             run {
-                loadingCard.visibility = View.GONE
-                downloadCard.visibility = View.VISIBLE
-                glideImageSet(requireContext(), reelMediaList[currentPosition], imageSlider)
-
-                if (reelName.isNotEmpty() && !reelName.equals("null")) {
-                    reelTitle.visibility = View.VISIBLE
-                    reelTitle.text = reelName
+                loadingCard.visibility = gone
+                downloadCard.visibility = visible
+                glideImageSet(
+                    requireContext(),
+                    reelMediaList[currentPosition].getString(ReelKey.Thumbnail.key),
+                    imageSlider
+                )
+                if (reelDetails.has(ReelKey.Title.key) &&
+                    !reelDetails.get(ReelKey.Title.key).equals("null")
+                ) {
+                    reelTitle.visibility = visible
+                    reelTitle.text = reelDetails.getString(ReelKey.Title.key)
                 } else {
-                    reelTitle.visibility = View.GONE
+                    reelTitle.visibility = gone
                 }
 
                 val downloadReel: Button = root.findViewById(R.id.downloadReel)
-                val downloadAllReel: Button = root.findViewById(R.id.downloadAllReel)
-
                 downloadReel.setOnClickListener {
                     if (checkInternet()) {
-                        val fileUrl = reelMediaList[currentPosition]
-                        val title = md5(fileUrl)
-//                        val fileType = getContentType(fileUrl)
-
-//                        val fileName = "$title.$fileType"
-//                        downloadFile(requireContext(), fileName, downloadLink)
-                        toast(requireContext(), "Downloading.. $title")
+                        val reelObject = reelMediaList[currentPosition]
+                        val reelId = md5(reelObject.getString(ReelKey.Id.key))
+                        val downloadLink = reelObject.getString(ReelKey.Media.key)
+                        val fileType = getContentType(reelObject.getString(ReelKey.Type.key))
+                        val fileName = "$reelId.$fileType"
+                        downloadFile(requireContext(), fileName, downloadLink)
+                        toast(requireContext(), "Downloading.. $fileName")
                     }
                 }
 
                 if (postSize > 1) {
-                    downloadAllReel.visibility = View.VISIBLE
-                    downloadAllReel.text = getPositionTitle(postSize)
                     downloadReel.text = getPositionTitle()
                     // If there are multiple postings, display the previous and next buttons.
-                    prevSlide.visibility = View.VISIBLE
-                    nextSlide.visibility = View.VISIBLE
-
+                    nextSlide.visibility = visible
                     prevSlide.setOnClickListener {
-                        if (currentPosition > 0) {
-                            currentPosition -= 1
-                            downloadReel.text = getPositionTitle()
-                            glideImageSet(
-                                requireContext(), reelMediaList[currentPosition], imageSlider
-                            )
-                        }
+                        currentPosition -= 1
+                        downloadReel.text = getPositionTitle()
+                        glideImageSet(
+                            requireContext(),
+                            reelMediaList[currentPosition].getString(ReelKey.Thumbnail.key),
+                            imageSlider
+                        )
+                        prevSlide.visibility = if (currentPosition > 0) visible else gone
+                        nextSlide.visibility =
+                            if (currentPosition < (postSize - 1)) visible else gone
                     }
 
                     nextSlide.setOnClickListener {
-                        if (currentPosition < (postSize - 1)) {
-                            currentPosition += 1
-                            downloadReel.text = getPositionTitle()
-                            glideImageSet(
-                                requireContext(), reelMediaList[currentPosition], imageSlider
-                            )
-                        }
+                        currentPosition += 1
+                        downloadReel.text = getPositionTitle()
+                        glideImageSet(
+                            requireContext(),
+                            reelMediaList[currentPosition].getString(ReelKey.Thumbnail.key),
+                            imageSlider
+                        )
+                        prevSlide.visibility = if (currentPosition > 0) visible else gone
+                        nextSlide.visibility =
+                            if (currentPosition < (postSize - 1)) visible else gone
                     }
-                } else {
-                    downloadAllReel.visibility = View.GONE
                 }
             }
         }
     }
 
-    private fun getPositionTitle(size: Number? = null): String {
-        val title = if (size != null)
-            getString(R.string.download_all) else
-            getString(R.string.download)
-        val position = size ?: (currentPosition + 1)
-        return "${title}($position)"
+    private fun getPositionTitle(): String {
+        val title = getString(R.string.download)
+        val position = (currentPosition + 1)
+        return "$title($position)"
     }
 
     @SuppressLint("SetTextI18n")
     fun showErrorMessage(loadingMessage: TextView, message: String) {
         requireActivity().runOnUiThread {
             run {
-                loadingMessage.text = "$parsingURL $message"
+                loadingMessage.text = "$parsingURL: $message"
             }
         }
     }

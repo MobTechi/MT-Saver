@@ -34,22 +34,20 @@ class StatusFragment : Fragment() {
         val root: View = binding.root
         val waDirPath = Functions.getStatusPath()
         val statusList = getStatusList(requireActivity(), waDirPath)
-        if (statusList != null) {
-            // show the status in the recycler view
-            val recyclerView: RecyclerView = root.findViewById(R.id.recyclerView)
-            val statusAdapter = StatusAdapter(requireActivity())
-            statusAdapter.setDataList(statusList)
-            recyclerView.apply {
-                layoutManager = GridLayoutManager(requireContext(), 2)
-                adapter = statusAdapter
-                addItemDecoration(
-                    GridSpacingItemDecoration(
-                        2,
-                        25,
-                        true
-                    )
+        // show the status in the recycler view
+        val recyclerView: RecyclerView = root.findViewById(R.id.recyclerView)
+        val statusAdapter = StatusAdapter(requireActivity())
+        statusAdapter.setDataList(statusList)
+        recyclerView.apply {
+            layoutManager = GridLayoutManager(requireContext(), 2)
+            adapter = statusAdapter
+            addItemDecoration(
+                GridSpacingItemDecoration(
+                    2,
+                    25,
+                    true
                 )
-            }
+            )
         }
         return root
     }

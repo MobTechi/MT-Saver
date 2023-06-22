@@ -82,7 +82,8 @@
                 android:id="@+id/loader"
                 style="@style/Widget.AppCompat.ProgressBar"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true" />
 
             <TextView
                 android:id="@+id/loadingMessage"
@@ -139,13 +140,6 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/download" />
-
-                <Button
-                    android:id="@+id/downloadAllReel"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10sp"
-                    android:text="@string/download_all" />
 
             </LinearLayout>
 

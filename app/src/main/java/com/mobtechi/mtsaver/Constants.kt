@@ -1,10 +1,9 @@
 package com.mobtechi.mtsaver
 
 object Constants {
-    const val tooManyRequestErrorCode = 429
-    const val image = "Image"
     const val png = "png"
     const val mp4 = "mp4"
+    const val video = "Video"
     val videoTypes = arrayOf("3gp", "mp4")
 
     // whats app constants
@@ -23,4 +22,9 @@ object Constants {
     // error messages
     const val parsingURL = "Error While Parsing Url"
     const val tooManyRequestErrorMessage = "Multiple requests were made. So, API is now in maintenance. Please come back after some time!"
+
+    // request codes
+    const val lowerSdkStoragePermissionCode = 100
+    const val higherSdkStoragePermissionCode = 101
+    const val tooManyRequestErrorCode = 429
 }
