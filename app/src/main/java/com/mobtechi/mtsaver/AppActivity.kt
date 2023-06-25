@@ -1,8 +1,8 @@
 package com.mobtechi.mtsaver
 
-import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -175,7 +175,20 @@ class AppActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 }
             }
             handleStoragePermission()
-        } else if (requestCode == lowerSdkStoragePermissionCode) {
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        println("requestCode -> $requestCode")
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == lowerSdkStoragePermissionCode && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            handleStoragePermission()
+        }
+        if (requestCode == higherSdkStoragePermissionCode && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             handleStoragePermission()
         }
     }
