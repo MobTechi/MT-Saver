@@ -1,15 +1,14 @@
-package com.mobtechi.mtsaver
+package com.mobtechi.mtsaver.activities
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.Toast
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -20,16 +19,19 @@ import androidx.drawerlayout.widget.DrawerLayout
 import androidx.navigation.findNavController
 import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.bottomnavigation.BottomNavigationView.OnNavigationItemReselectedListener
 import com.google.android.material.navigation.NavigationView
 import com.mobtechi.mtsaver.Constants.higherSdkStoragePermissionCode
 import com.mobtechi.mtsaver.Constants.lowerSdkStoragePermissionCode
 import com.mobtechi.mtsaver.Functions.askStoragePermission
 import com.mobtechi.mtsaver.Functions.checkStoragePermission
 import com.mobtechi.mtsaver.Functions.getAppPath
-import com.mobtechi.mtsaver.Functions.saveStoragePermissionPref
+import com.mobtechi.mtsaver.Functions.saveStoragePathPref
 import com.mobtechi.mtsaver.Functions.toast
+import com.mobtechi.mtsaver.R
 import com.mobtechi.mtsaver.databinding.AppActivityBinding
 import java.io.File
+
 
 @Suppress("DEPRECATION")
 class AppActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
@@ -48,7 +50,7 @@ class AppActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelected
     }
 
     private fun initAppPage() {
-        val toolbar = binding.appMainPage.toolbar
+        val toolbar = binding.bottomNavigation.toolbar
         setSupportActionBar(toolbar)
         drawerLayout = binding.drawerLayout
         val navView: NavigationView = binding.navView
@@ -111,10 +113,6 @@ class AppActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelected
             if (!appFolder.exists()) {
                 appFolder.mkdir()
             }
-            // after permission given load the status fragment
-            val navController =
-                findNavController(R.id.nav_host_fragment_activity_main)
-            navController.navigate(R.id.navigation_status)
         } else {
             storagePermissionLayout.visibility = View.VISIBLE
         }
@@ -158,45 +156,38 @@ class AppActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelected
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == higherSdkStoragePermissionCode) {
-            if (resultCode == RESULT_OK) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    val uri = data!!.data
-                    if (uri != null) {
-                        val uriPath = uri.path
-                        if (uriPath != null && uriPath.endsWith(".Statuses")) {
-                            // after permission store into preference when android 30 or above
-                            saveStoragePermissionPref(this, true)
-                        } else {
-                            // dialog when user gave wrong path
-                            showWrongPathDialog()
-                        }
-                    }
+        if (requestCode == higherSdkStoragePermissionCode && resultCode == RESULT_OK) {
+            val uri = data?.data
+            if (uri != null) {
+                val uriPath = uri.path
+                if (uriPath != null && uriPath.endsWith(".Statuses")) {
+                    val flag = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    contentResolver.takePersistableUriPermission(uri, flag)
+                    // after permission store into preference when android 30 or above
+                    saveStoragePathPref(this, uri.toString())
+                } else {
+                    // dialog when user gave wrong path
+                    showWrongPathDialog()
                 }
             }
-            handleStoragePermission()
         }
     }
 
     override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
     ) {
-        println("requestCode -> $requestCode")
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == lowerSdkStoragePermissionCode && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+        if (requestCode == lowerSdkStoragePermissionCode || requestCode == higherSdkStoragePermissionCode) {
             handleStoragePermission()
-        }
-        if (requestCode == higherSdkStoragePermissionCode && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            handleStoragePermission()
+            // after permission given load the status fragment
+            val navController = findNavController(R.id.nav_host_fragment_activity_main)
+            navController.navigate(R.id.navigation_status)
         }
     }
 
     private fun showWrongPathDialog() {
         val builder = AlertDialog.Builder(this)
-        builder.setCancelable(false)
-            .setTitle(getString(R.string.storage_permission))
+        builder.setCancelable(false).setTitle(getString(R.string.storage_permission))
             .setMessage(getString(R.string.wrong_storage_permission_description))
             .setPositiveButton(getString(R.string.exit)) { dialogInterface, _ ->
                 dialogInterface.dismiss()

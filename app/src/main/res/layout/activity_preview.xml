@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    tools:context=".PreviewActivity">
+    tools:context=".activities.PreviewActivity">
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"

@@ -7,6 +7,18 @@
     android:background="@color/gray"
     tools:context=".ui.StatusFragment">
 
+    <TextView
+        android:id="@+id/no_status"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fontFamily="sans-serif-medium"
+        android:gravity="center"
+        android:text="@string/no_status"
+        android:textAlignment="center"
+        android:textColor="@color/white"
+        android:textSize="18sp"
+        android:visibility="gone" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="0dp"

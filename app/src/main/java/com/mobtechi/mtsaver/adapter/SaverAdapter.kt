@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import androidx.core.content.FileProvider
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -73,7 +74,9 @@ class SaverAdapter(private var context: Activity) :
 
             btnShare.setOnClickListener {
                 dialog.dismiss()
-                shareFile(context, data)
+                val fileUri =
+                    FileProvider.getUriForFile(context, "${context.packageName}.provider", data)
+                shareFile(context, data.name, fileUri)
             }
 
             btnDelete.setOnClickListener {

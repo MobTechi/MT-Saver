@@ -3,6 +3,7 @@ package com.mobtechi.mtsaver
 object Constants {
     const val png = "png"
     const val mp4 = "mp4"
+    const val image = "Image"
     const val video = "Video"
     val videoTypes = arrayOf("3gp", "mp4")
 

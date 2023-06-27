@@ -1,4 +1,4 @@
-@file:Suppress("CAST_NEVER_SUCCEEDS")
+@file:Suppress("CAST_NEVER_SUCCEEDS", "DEPRECATION")
 
 package com.mobtechi.mtsaver
 
@@ -8,6 +8,7 @@ import android.app.Activity
 import android.app.DownloadManager
 import android.content.Context
 import android.content.Context.MODE_PRIVATE
+import android.content.Context.STORAGE_SERVICE
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
@@ -15,7 +16,7 @@ import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
-import android.provider.DocumentsContract
+import android.os.storage.StorageManager
 import android.provider.MediaStore
 import android.view.View
 import android.view.inputmethod.InputMethodManager
@@ -23,13 +24,18 @@ import android.widget.ImageView
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
+import androidx.core.net.toUri
+import androidx.documentfile.provider.DocumentFile
 import com.bumptech.glide.Glide
+import com.mobtechi.mtsaver.Constants.higherSdkStoragePermissionCode
+import com.mobtechi.mtsaver.Constants.image
 import com.mobtechi.mtsaver.Constants.mp4
 import com.mobtechi.mtsaver.Constants.newWAPath
 import com.mobtechi.mtsaver.Constants.oldWAPath
 import com.mobtechi.mtsaver.Constants.png
 import com.mobtechi.mtsaver.Constants.video
+import com.mobtechi.mtsaver.activities.PreviewActivity
+import com.mobtechi.mtsaver.modal.StatusModal
 import java.io.File
 import java.net.URLConnection
 import java.security.MessageDigest
@@ -42,16 +48,28 @@ object Functions {
 
     // shared preference functions
 
-    fun saveStoragePermissionPref(activity: Activity, isGranted: Boolean) {
+    fun saveStoragePathPref(activity: Activity, path: String) {
         val editor: SharedPreferences.Editor =
             activity.getSharedPreferences(storagePref, MODE_PRIVATE).edit()
-        editor.putBoolean("isGranted", isGranted)
+        editor.putString("statusPath", path)
         editor.apply()
     }
 
-    private fun getStoragePermissionPref(activity: Activity): Boolean {
+    private fun getStoragePathPref(activity: Activity): String {
         val prefs: SharedPreferences = activity.getSharedPreferences(storagePref, MODE_PRIVATE)
-        return prefs.getBoolean("isGranted", false)
+        return prefs.getString("statusPath", "")!!.ifEmpty { "" }
+    }
+
+    // get path functions
+
+    fun getAppPath(): String {
+        return Environment.getExternalStorageDirectory().absolutePath + "/Download/MT Saver"
+    }
+
+    fun getStatusPath(activity: Activity): String {
+        val oldPath = Environment.getExternalStorageDirectory().absolutePath + oldWAPath
+        val newPath = getStoragePathPref(activity).ifEmpty { newWAPath }
+        return if (Build.VERSION.SDK_INT <= 30) oldPath else newPath
     }
 
     // permission functions
@@ -62,25 +80,22 @@ object Functions {
         // check photo and video access permission for android 13
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val imageResult: Int = ContextCompat.checkSelfPermission(
-                activity,
-                Manifest.permission.READ_MEDIA_IMAGES
+                activity, Manifest.permission.READ_MEDIA_IMAGES
             )
             val videoResult: Int = ContextCompat.checkSelfPermission(
-                activity,
-                Manifest.permission.READ_MEDIA_VIDEO
+                activity, Manifest.permission.READ_MEDIA_VIDEO
             )
             isPhotoVideoGranted =
                 imageResult == PackageManager.PERMISSION_GRANTED && videoResult == PackageManager.PERMISSION_GRANTED
         }
         // check status access permission for android 10 and above
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            isStatusGranted = getStoragePermissionPref(activity)
+            isStatusGranted = getStoragePathPref(activity).isNotEmpty()
         }
         val isWriteGranted: Boolean = if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
             // check the write storage permission
             val result: Int = ContextCompat.checkSelfPermission(
-                activity,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
+                activity, Manifest.permission.WRITE_EXTERNAL_STORAGE
             )
             result == PackageManager.PERMISSION_GRANTED
         } else {
@@ -93,78 +108,79 @@ object Functions {
         // ask storage permission for normal files access for android 13
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ActivityCompat.requestPermissions(
-                activity,
-                arrayOf(
+                activity, arrayOf(
                     Manifest.permission.WRITE_EXTERNAL_STORAGE,
                     Manifest.permission.READ_MEDIA_IMAGES,
                     Manifest.permission.READ_MEDIA_VIDEO
-                ),
-                Constants.lowerSdkStoragePermissionCode
+                ), higherSdkStoragePermissionCode
             )
         }
         // request for the status folder access permission android 11 and above
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !getStoragePermissionPref(activity)) {
-            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-            val waPath = getStatusPath()
-            intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, Uri.parse(waPath))
-            activity.startActivityForResult(intent, Constants.higherSdkStoragePermissionCode)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && getStoragePathPref(activity).isEmpty()) {
+            val storageManager = activity.getSystemService(STORAGE_SERVICE) as StorageManager
+            val intent = storageManager.primaryStorageVolume.createOpenDocumentTreeIntent()
+            var uri = intent.getParcelableExtra<Uri>("android.provider.extra.INITIAL_URI") as Uri
+            var schema = uri.toString().replace("/root/", "/tree/")
+            schema += "%3A$newWAPath"
+            uri = Uri.parse(schema)
+            intent.putExtra("android.provider.extra.INITIAL_URI", uri)
+            intent.putExtra("android.provider.extra.SHOW_ADVANCED", true)
+            activity.startActivityForResult(intent, higherSdkStoragePermissionCode)
         }
 
         // request for the status folder access permission below android 11
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
             ActivityCompat.requestPermissions(
-                activity, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                activity,
+                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
                 Constants.lowerSdkStoragePermissionCode
             )
         }
     }
 
-    // get path functions
-
-    fun getAppPath(): String {
-        return Environment.getExternalStorageDirectory().absolutePath + "/Download/MT Saver"
-    }
-
-    fun getStatusPath(): String {
-        val oldPath = Environment.getExternalStorageDirectory().absolutePath + oldWAPath
-        val newPath = Environment.getExternalStorageDirectory().absolutePath + newWAPath
-        return if (Build.VERSION.SDK_INT <= 30) oldPath else newPath
-    }
-
     // get status list
 
     @SuppressLint("Range")
-    fun getStatusList(activity: Activity, dirPath: String): List<File> {
-        var savedFiles: ArrayList<File> = ArrayList()
+    fun getStatusList(activity: Activity, dirPath: String): List<StatusModal> {
+        val savedFiles: ArrayList<StatusModal> = ArrayList()
         // For Android 10 and higher (API level 29+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val projection = arrayOf(
-                MediaStore.Files.FileColumns._ID,
-                MediaStore.MediaColumns.DATA,
-                MediaStore.MediaColumns.MIME_TYPE
-            )
-            val selection = "${MediaStore.MediaColumns.DATA} like ?"
-            val selectionArgs = arrayOf("%$dirPath%")
-            val sortOrder = "${MediaStore.MediaColumns.DATE_MODIFIED} DESC"
-            val cursor: Cursor? = activity.contentResolver.query(
-                MediaStore.Files.getContentUri("external"),
-                projection,
-                selection,
-                selectionArgs,
-                sortOrder
-            )
-            cursor?.use {
-                while (it.moveToNext()) {
-                    val mimeType =
-                        it.getString(it.getColumnIndex(MediaStore.MediaColumns.MIME_TYPE))
-                    if (mimeType.startsWith("image") || mimeType.startsWith("video")) {
-                        // Add the file path to the list
-                        savedFiles.add(File(it.getString(it.getColumnIndex(MediaStore.MediaColumns.DATA))))
+            val files = DocumentFile.fromTreeUri(activity, Uri.parse(dirPath))
+            if (files != null && files.listFiles().isNotEmpty()) {
+                println("files.listFiles() ${files.listFiles().size}")
+                files.listFiles().forEach {
+                    val isImage = it.type!!.contains(Regex("image"))
+                    val isVideo = it.type!!.contains(Regex("video"))
+                    if (it.isFile && (isImage || isVideo)) {
+                        val fileType = if (isImage) image else video
+                        val statusModal = StatusModal(
+                            it.name!!,
+                            fileType,
+                            it.uri.path!!,
+                            it.uri
+                        )
+                        savedFiles.add(statusModal)
                     }
                 }
             }
         } else {
-            savedFiles = getFiles(dirPath)
+            val waFile = File(dirPath)
+            if (waFile.exists() && waFile.listFiles() != null) {
+                val videoExtensions = arrayOf("3gp", "mp4")
+                val statusExtensions = arrayOf("3gp", "mp4", "png", "jpg", "jpeg")
+                for (file in waFile.listFiles()!!) {
+                    val fileType = if (videoExtensions.contains(file.extension)) video else image
+                    val statusModal = StatusModal(
+                        file.name,
+                        fileType,
+                        file.path,
+                        file.toUri()
+                    )
+                    if (!savedFiles.contains(statusModal) && statusExtensions.contains(file.extension)) {
+                        savedFiles.add(statusModal)
+                    }
+                }
+            }
         }
         return savedFiles
     }
@@ -173,7 +189,7 @@ object Functions {
 
     @SuppressLint("Range")
     fun getSavedList(activity: Activity, dirPath: String): List<File> {
-        var savedFiles: ArrayList<File> = ArrayList()
+        val savedFiles: ArrayList<File> = ArrayList()
         // For Android 10 and higher (API level 29+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val projection = arrayOf(
@@ -202,23 +218,17 @@ object Functions {
                 }
             }
         } else {
-            savedFiles = getFiles(dirPath)
-        }
-        return savedFiles
-    }
-
-    private fun getFiles(dirPath: String): ArrayList<File> {
-        val files: ArrayList<File> = ArrayList()
-        val waFile = File(dirPath)
-        if (waFile.exists() && waFile.listFiles() != null) {
-            val statusExtensions = arrayOf("3gp", "mp4", "png", "jpg", "jpeg")
-            for (file in waFile.listFiles()!!) {
-                if (!files.contains(file) && statusExtensions.contains(file.extension)) {
-                    files.add(file)
+            val waFile = File(dirPath)
+            if (waFile.exists() && waFile.listFiles() != null) {
+                val statusExtensions = arrayOf("3gp", "mp4", "png", "jpg", "jpeg")
+                for (file in waFile.listFiles()!!) {
+                    if (!savedFiles.contains(file) && statusExtensions.contains(file.extension)) {
+                        savedFiles.add(file)
+                    }
                 }
             }
         }
-        return files
+        return savedFiles
     }
 
     // download function
@@ -234,8 +244,7 @@ object Functions {
         request.setAllowedNetworkTypes(DownloadManager.Request.NETWORK_MOBILE or DownloadManager.Request.NETWORK_WIFI)
         request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
         request.setDestinationInExternalPublicDir(
-            Environment.DIRECTORY_DOWNLOADS,
-            "/MT Saver/reels/$fileName"
+            Environment.DIRECTORY_DOWNLOADS, "/MT Saver/reels/$fileName"
         )
         (context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
     }
@@ -267,10 +276,9 @@ object Functions {
         context.startActivity(previewIntent)
     }
 
-    fun shareFile(context: Activity, file: File) {
+    fun shareFile(context: Activity, fileName: String, fileUri: Uri) {
         val intentShareFile = Intent(Intent.ACTION_SEND)
-        intentShareFile.type = URLConnection.guessContentTypeFromName(file.name)
-        val fileUri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+        intentShareFile.type = URLConnection.guessContentTypeFromName(fileName)
         intentShareFile.putExtra(Intent.EXTRA_STREAM, fileUri)
         context.startActivity(Intent.createChooser(intentShareFile, "Share a file"))
     }
@@ -289,11 +297,7 @@ object Functions {
     }
 
     fun glideImageSet(context: Context, url: String, imageView: ImageView) {
-        Glide.with(context)
-            .load(url)
-            .placeholder(R.drawable.loader)
-            .centerCrop()
-            .into(imageView)
+        Glide.with(context).load(url).placeholder(R.drawable.loader).centerCrop().into(imageView)
     }
 
     fun hideSoftKeyboard(context: Context, view: View) {
@@ -315,8 +319,7 @@ object Functions {
             val hexString = StringBuffer()
             for (i in messageDigest.indices) hexString.append(
                 Integer.toHexString(
-                    0xFF and messageDigest[i]
-                        .toInt()
+                    0xFF and messageDigest[i].toInt()
                 )
             )
             return hexString.toString()

@@ -2,6 +2,7 @@ package com.mobtechi.mtsaver.adapter
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,23 +10,23 @@ import android.widget.ImageView
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.mobtechi.mtsaver.Constants.videoTypes
-import com.mobtechi.mtsaver.Functions
+import com.mobtechi.mtsaver.Constants.video
 import com.mobtechi.mtsaver.Functions.copyFile
 import com.mobtechi.mtsaver.Functions.getAppPath
 import com.mobtechi.mtsaver.Functions.glideImageSet
 import com.mobtechi.mtsaver.Functions.shareFile
 import com.mobtechi.mtsaver.Functions.toast
 import com.mobtechi.mtsaver.R
-import java.io.File
+import com.mobtechi.mtsaver.activities.PreviewActivity
+import com.mobtechi.mtsaver.modal.StatusModal
 
 @Suppress("DEPRECATION")
 class StatusAdapter(private var context: Activity) :
     RecyclerView.Adapter<StatusAdapter.ViewHolder>() {
 
-    private var dataList = emptyList<File>()
+    private var dataList = emptyList<StatusModal>()
 
-    internal fun setDataList(dataList: List<File>) {
+    internal fun setDataList(dataList: List<StatusModal>) {
         this.dataList = dataList
     }
 
@@ -57,13 +58,18 @@ class StatusAdapter(private var context: Activity) :
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         // Get the data model based on position
         val data = dataList[position]
-        holder.playIcon.visibility =
-            if (videoTypes.contains(data.extension)) View.VISIBLE else View.GONE
-
-        glideImageSet(context, data.path, holder.statusImage)
+        holder.playIcon.visibility = if (data.fileType === video) View.VISIBLE else View.GONE
+        glideImageSet(context, data.fileUri.toString(), holder.statusImage)
 
         holder.statusImage.setOnClickListener {
-            Functions.openPreviewActivity(context, data.path)
+            println("datadatadata $data")
+            val previewIntent = Intent(context, PreviewActivity::class.java)
+            previewIntent.putExtra("fileUri", data.fileUri.toString())
+            previewIntent.putExtra("fileName", data.fileName)
+            previewIntent.putExtra("fileType", data.fileType)
+            previewIntent.putExtra("filePath", data.filePath)
+            previewIntent.putExtra("isFromStatus", true)
+            context.startActivity(previewIntent)
         }
 
         holder.moreOption.setOnClickListener {
@@ -74,14 +80,14 @@ class StatusAdapter(private var context: Activity) :
 
             btnShare.setOnClickListener {
                 dialog.dismiss()
-                shareFile(context, data)
+                shareFile(context, data.fileName, data.fileUri)
             }
 
             btnSave.setOnClickListener {
                 dialog.dismiss()
-                val fileName = data.name
+                val fileName = data.fileName
                 val statusPath = getAppPath() + "/status/"
-                copyFile(data.path, statusPath + fileName)
+                copyFile(data.fileUri.toString(), statusPath + fileName)
                 toast(context, "Status Saved!")
             }
             dialog.setContentView(view)
