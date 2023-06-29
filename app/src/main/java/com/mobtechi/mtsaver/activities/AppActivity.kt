@@ -8,7 +8,6 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.Toast
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -19,7 +18,6 @@ import androidx.drawerlayout.widget.DrawerLayout
 import androidx.navigation.findNavController
 import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import com.google.android.material.bottomnavigation.BottomNavigationView.OnNavigationItemReselectedListener
 import com.google.android.material.navigation.NavigationView
 import com.mobtechi.mtsaver.Constants.higherSdkStoragePermissionCode
 import com.mobtechi.mtsaver.Constants.lowerSdkStoragePermissionCode
@@ -109,9 +107,8 @@ class AppActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelected
         if (checkStoragePermission(this)) {
             storagePermissionLayout.visibility = View.GONE
             // create our app directory
-            val appFolder = File(getAppPath())
-            if (!appFolder.exists()) {
-                appFolder.mkdir()
+            if (!File(getAppPath()).exists()) {
+                File(getAppPath()).mkdir()
             }
         } else {
             storagePermissionLayout.visibility = View.VISIBLE
@@ -165,6 +162,10 @@ class AppActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelected
                     contentResolver.takePersistableUriPermission(uri, flag)
                     // after permission store into preference when android 30 or above
                     saveStoragePathPref(this, uri.toString())
+                    handleStoragePermission()
+                    // after permission given load the status fragment
+                    val navController = findNavController(R.id.nav_host_fragment_activity_main)
+                    navController.navigate(R.id.navigation_status)
                 } else {
                     // dialog when user gave wrong path
                     showWrongPathDialog()

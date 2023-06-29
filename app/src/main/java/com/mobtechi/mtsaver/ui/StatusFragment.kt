@@ -37,8 +37,8 @@ class StatusFragment : Fragment() {
         val recyclerView: RecyclerView = root.findViewById(R.id.recyclerView)
         val noStatusText = root.findViewById<TextView>(R.id.no_status)
         val statusAdapter = StatusAdapter(requireActivity())
-        val waDirPath = Functions.getStatusPath(requireActivity())
         if (checkStoragePermission(requireActivity())) {
+            val waDirPath = Functions.getStatusPath(requireActivity())
             val statusList = getStatusList(requireActivity(), waDirPath)
             // show the status in the recycler view
             noStatusText.visibility = if (statusList.isNotEmpty()) View.GONE else View.VISIBLE

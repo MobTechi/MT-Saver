@@ -3,6 +3,7 @@ package com.mobtechi.mtsaver.adapter
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
+import android.os.Build
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,8 +12,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.mobtechi.mtsaver.Constants.video
+import com.mobtechi.mtsaver.Functions
 import com.mobtechi.mtsaver.Functions.copyFile
-import com.mobtechi.mtsaver.Functions.getAppPath
+import com.mobtechi.mtsaver.Functions.copyFileUsingInputStream
 import com.mobtechi.mtsaver.Functions.glideImageSet
 import com.mobtechi.mtsaver.Functions.shareFile
 import com.mobtechi.mtsaver.Functions.toast
@@ -58,11 +60,10 @@ class StatusAdapter(private var context: Activity) :
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         // Get the data model based on position
         val data = dataList[position]
-        holder.playIcon.visibility = if (data.fileType === video) View.VISIBLE else View.GONE
+        holder.playIcon.visibility = if (data.fileType == video) View.VISIBLE else View.GONE
         glideImageSet(context, data.fileUri.toString(), holder.statusImage)
 
         holder.statusImage.setOnClickListener {
-            println("datadatadata $data")
             val previewIntent = Intent(context, PreviewActivity::class.java)
             previewIntent.putExtra("fileUri", data.fileUri.toString())
             previewIntent.putExtra("fileName", data.fileName)
@@ -86,9 +87,22 @@ class StatusAdapter(private var context: Activity) :
             btnSave.setOnClickListener {
                 dialog.dismiss()
                 val fileName = data.fileName
-                val statusPath = getAppPath() + "/status/"
-                copyFile(data.fileUri.toString(), statusPath + fileName)
-                toast(context, "Status Saved!")
+                val statusPath = Functions.getAppPath() + "/status/"
+                // copy the file using android File() for below android 10
+                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                    copyFile(data.fileUri.toString(), statusPath + fileName)
+                    toast(context, "Status Saved!")
+                } else {
+                    // copy the file using android content resolver for above android 10
+                    copyFileUsingInputStream(
+                        context,
+                        fileName,
+                        data.fileType,
+                        data.fileUri,
+                        statusPath
+                    )
+                    toast(context, "Status Saved!")
+                }
             }
             dialog.setContentView(view)
             dialog.show()

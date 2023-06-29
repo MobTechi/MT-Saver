@@ -110,11 +110,14 @@ class ReelFragment : Fragment() {
             } else {
                 val clipboard: ClipboardManager =
                     requireContext().getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-                if (clipboard.text.isNotEmpty() && checkIsReelLink(clipboard.text.toString())) {
+                val clipText = clipboard.text
+                if (clipText != null && clipText.isNotEmpty()) {
                     linkEditText.setText(clipboard.text.toString())
                     linkEditText.clearFocus()
                     pasteLink.text = getString(R.string.clear)
                     hideSoftKeyboard(requireContext(), it)
+                } else {
+                    toast(requireActivity(), getString(R.string.please_enter_link))
                 }
             }
         }

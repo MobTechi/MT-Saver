@@ -6,6 +6,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.DownloadManager
+import android.content.ContentValues
 import android.content.Context
 import android.content.Context.MODE_PRIVATE
 import android.content.Context.STORAGE_SERVICE
@@ -24,7 +25,6 @@ import android.widget.ImageView
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
 import com.bumptech.glide.Glide
 import com.mobtechi.mtsaver.Constants.higherSdkStoragePermissionCode
@@ -37,10 +37,13 @@ import com.mobtechi.mtsaver.Constants.video
 import com.mobtechi.mtsaver.activities.PreviewActivity
 import com.mobtechi.mtsaver.modal.StatusModal
 import java.io.File
+import java.io.IOException
+import java.io.OutputStream
 import java.net.URLConnection
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 import java.text.DecimalFormat
+
 
 object Functions {
 
@@ -63,7 +66,7 @@ object Functions {
     // get path functions
 
     fun getAppPath(): String {
-        return Environment.getExternalStorageDirectory().absolutePath + "/Download/MT Saver"
+        return Environment.DIRECTORY_DOCUMENTS + "/MT Saver"
     }
 
     fun getStatusPath(activity: Activity): String {
@@ -75,8 +78,9 @@ object Functions {
     // permission functions
 
     fun checkStoragePermission(activity: Activity): Boolean {
-        var isPhotoVideoGranted = true
         var isStatusGranted = true
+        var isPhotoVideoGranted = true
+        var isWriteGranted = true
         // check photo and video access permission for android 13
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val imageResult: Int = ContextCompat.checkSelfPermission(
@@ -92,29 +96,27 @@ object Functions {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             isStatusGranted = getStoragePathPref(activity).isNotEmpty()
         }
-        val isWriteGranted: Boolean = if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-            // check the write storage permission
+        // check the write storage permission for below android 10
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
             val result: Int = ContextCompat.checkSelfPermission(
                 activity, Manifest.permission.WRITE_EXTERNAL_STORAGE
             )
-            result == PackageManager.PERMISSION_GRANTED
-        } else {
-            true
+            isWriteGranted = result == PackageManager.PERMISSION_GRANTED
+        } else if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P && Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
+            // check the write storage permission for android 10 to 12
+            val readPermission = ContextCompat.checkSelfPermission(
+                activity, Manifest.permission.READ_EXTERNAL_STORAGE
+            )
+            val writePermission = ContextCompat.checkSelfPermission(
+                activity, Manifest.permission.WRITE_EXTERNAL_STORAGE
+            )
+            isWriteGranted =
+                readPermission == PackageManager.PERMISSION_GRANTED && writePermission == PackageManager.PERMISSION_GRANTED
         }
         return isPhotoVideoGranted && isStatusGranted && isWriteGranted
     }
 
     fun askStoragePermission(activity: Activity) {
-        // ask storage permission for normal files access for android 13
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ActivityCompat.requestPermissions(
-                activity, arrayOf(
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                    Manifest.permission.READ_MEDIA_IMAGES,
-                    Manifest.permission.READ_MEDIA_VIDEO
-                ), higherSdkStoragePermissionCode
-            )
-        }
         // request for the status folder access permission android 11 and above
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && getStoragePathPref(activity).isEmpty()) {
             val storageManager = activity.getSystemService(STORAGE_SERVICE) as StorageManager
@@ -128,7 +130,28 @@ object Functions {
             activity.startActivityForResult(intent, higherSdkStoragePermissionCode)
         }
 
-        // request for the status folder access permission below android 11
+        // request storage access permission for android 13
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ActivityCompat.requestPermissions(
+                activity, arrayOf(
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                    Manifest.permission.READ_MEDIA_IMAGES,
+                    Manifest.permission.READ_MEDIA_VIDEO
+                ), higherSdkStoragePermissionCode
+            )
+        }
+
+        // request storage access permission for android 10 to 12
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P && Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
+            ActivityCompat.requestPermissions(
+                activity, arrayOf(
+                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                ), higherSdkStoragePermissionCode
+            )
+        }
+
+        // request storage access permission for below android 10
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
             ActivityCompat.requestPermissions(
                 activity,
@@ -147,17 +170,13 @@ object Functions {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val files = DocumentFile.fromTreeUri(activity, Uri.parse(dirPath))
             if (files != null && files.listFiles().isNotEmpty()) {
-                println("files.listFiles() ${files.listFiles().size}")
                 files.listFiles().forEach {
                     val isImage = it.type!!.contains(Regex("image"))
                     val isVideo = it.type!!.contains(Regex("video"))
                     if (it.isFile && (isImage || isVideo)) {
                         val fileType = if (isImage) image else video
                         val statusModal = StatusModal(
-                            it.name!!,
-                            fileType,
-                            it.uri.path!!,
-                            it.uri
+                            it.name!!, fileType, it.uri.path!!, it.uri
                         )
                         savedFiles.add(statusModal)
                     }
@@ -171,10 +190,7 @@ object Functions {
                 for (file in waFile.listFiles()!!) {
                     val fileType = if (videoExtensions.contains(file.extension)) video else image
                     val statusModal = StatusModal(
-                        file.name,
-                        fileType,
-                        file.path,
-                        file.toUri()
+                        file.name, fileType, file.path, Uri.parse(file.path)
                     )
                     if (!savedFiles.contains(statusModal) && statusExtensions.contains(file.extension)) {
                         savedFiles.add(statusModal)
@@ -244,9 +260,53 @@ object Functions {
         request.setAllowedNetworkTypes(DownloadManager.Request.NETWORK_MOBILE or DownloadManager.Request.NETWORK_WIFI)
         request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
         request.setDestinationInExternalPublicDir(
-            Environment.DIRECTORY_DOWNLOADS, "/MT Saver/reels/$fileName"
+            Environment.DIRECTORY_DOCUMENTS, "/MT Saver/reels/$fileName"
         )
         (context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
+    }
+
+    // file copy functions
+
+    fun copyFile(fromPath: String, toPath: String) {
+        // copy the file for below android 10
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+            File(fromPath).copyTo(File(toPath), true)
+        }
+    }
+
+    @SuppressLint("Recycle")
+    fun copyFileUsingInputStream(
+        activity: Activity,
+        fileName: String,
+        fileType: String,
+        fileUri: Uri,
+        destinationPath: String
+    ) {
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
+            val inputStream = activity.contentResolver.openInputStream(fileUri)
+            try {
+                val values = ContentValues()
+                val inputFileType = if (fileType == video) "video/mp4" else "image/jpeg"
+                values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                values.put(MediaStore.MediaColumns.MIME_TYPE, inputFileType)
+                values.put(MediaStore.MediaColumns.RELATIVE_PATH, destinationPath)
+                val uri = activity.contentResolver.insert(
+                    MediaStore.Files.getContentUri("external"), values
+                )
+                val outputStream: OutputStream =
+                    uri?.let { activity.contentResolver.openOutputStream(it) }!!
+                if (inputStream != null) {
+                    outputStream.write(inputStream.readBytes())
+                }
+                outputStream.close()
+            } catch (e: IOException) {
+                toast(activity, "Something wrong! Try again.")
+            }
+        }
+    }
+
+    fun deleteFile(filePath: String) {
+        File(filePath).delete()
     }
 
     // util functions
@@ -281,10 +341,6 @@ object Functions {
         intentShareFile.type = URLConnection.guessContentTypeFromName(fileName)
         intentShareFile.putExtra(Intent.EXTRA_STREAM, fileUri)
         context.startActivity(Intent.createChooser(intentShareFile, "Share a file"))
-    }
-
-    fun copyFile(fromPath: String, toPath: String) {
-        File(fromPath).copyTo(File(toPath), true)
     }
 
     fun toast(context: Context, message: String) {

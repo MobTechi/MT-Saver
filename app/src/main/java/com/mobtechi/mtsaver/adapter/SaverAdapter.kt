@@ -2,6 +2,7 @@ package com.mobtechi.mtsaver.adapter
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.os.Build
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,6 +11,7 @@ import androidx.core.content.FileProvider
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.mobtechi.mtsaver.Functions.deleteFile
 import com.mobtechi.mtsaver.Functions.glideImageSet
 import com.mobtechi.mtsaver.Functions.openPreviewActivity
 import com.mobtechi.mtsaver.Functions.shareFile
@@ -82,10 +84,20 @@ class SaverAdapter(private var context: Activity) :
             btnDelete.setOnClickListener {
                 dialog.dismiss()
                 if (data.exists()) {
-                    data.delete()
-                    dataList.removeAt(position)
-                    toast(context, "Deleted!")
-                    this.notifyDataSetChanged()
+                    // delete the file for above android 10
+                    if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q) {
+                        val version = Build.VERSION.RELEASE
+                        toast(
+                            context,
+                            "You can't delete a file with Android $version. Use the file manager!"
+                        )
+                    } else {
+                        // delete the file for below android 10
+                        deleteFile(data.path)
+                        dataList.removeAt(position)
+                        this.notifyDataSetChanged()
+                        toast(context, "Deleted!")
+                    }
                 }
             }
 
