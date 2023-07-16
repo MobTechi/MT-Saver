@@ -13,6 +13,8 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.mobtechi.mtsaver.Constants.video
 import com.mobtechi.mtsaver.Functions
+import com.mobtechi.mtsaver.Functions.askStoragePermission
+import com.mobtechi.mtsaver.Functions.checkStoragePermission
 import com.mobtechi.mtsaver.Functions.copyFile
 import com.mobtechi.mtsaver.Functions.copyFileUsingInputStream
 import com.mobtechi.mtsaver.Functions.glideImageSet
@@ -85,23 +87,27 @@ class StatusAdapter(private var context: Activity) :
             }
 
             btnSave.setOnClickListener {
-                dialog.dismiss()
-                val fileName = data.fileName
-                val statusPath = Functions.getAppPath() + "/status/"
-                // copy the file using android File() for below android 10
-                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-                    copyFile(data.fileUri.toString(), statusPath + fileName)
-                    toast(context, "Status Saved!")
+                if (checkStoragePermission(context)) {
+                    dialog.dismiss()
+                    val fileName = data.fileName
+                    val statusPath = Functions.getAppPath() + "/status/"
+                    // copy the file using android File() for below android 10
+                    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                        copyFile(data.fileUri.toString(), statusPath + fileName)
+                        toast(context, "Status Saved!")
+                    } else {
+                        // copy the file using android content resolver for above android 10
+                        copyFileUsingInputStream(
+                            context,
+                            fileName,
+                            data.fileType,
+                            data.fileUri,
+                            statusPath
+                        )
+                        toast(context, "Status Saved!")
+                    }
                 } else {
-                    // copy the file using android content resolver for above android 10
-                    copyFileUsingInputStream(
-                        context,
-                        fileName,
-                        data.fileType,
-                        data.fileUri,
-                        statusPath
-                    )
-                    toast(context, "Status Saved!")
+                    askStoragePermission(context)
                 }
             }
             dialog.setContentView(view)

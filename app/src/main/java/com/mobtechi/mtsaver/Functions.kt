@@ -77,8 +77,20 @@ object Functions {
 
     // permission functions
 
+    fun checkStatusStoragePermission(activity: Activity): Boolean {
+        // check status access permission for android 10 and above
+        val isStatusGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            getStoragePathPref(activity).isNotEmpty()
+        } else {
+            val result: Int = ContextCompat.checkSelfPermission(
+                activity, Manifest.permission.WRITE_EXTERNAL_STORAGE
+            )
+            result == PackageManager.PERMISSION_GRANTED
+        }
+        return isStatusGranted
+    }
+
     fun checkStoragePermission(activity: Activity): Boolean {
-        var isStatusGranted = true
         var isPhotoVideoGranted = true
         var isWriteGranted = true
         // check photo and video access permission for android 13
@@ -91,10 +103,6 @@ object Functions {
             )
             isPhotoVideoGranted =
                 imageResult == PackageManager.PERMISSION_GRANTED && videoResult == PackageManager.PERMISSION_GRANTED
-        }
-        // check status access permission for android 10 and above
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            isStatusGranted = getStoragePathPref(activity).isNotEmpty()
         }
         // check the write storage permission for below android 10
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
@@ -113,10 +121,10 @@ object Functions {
             isWriteGranted =
                 readPermission == PackageManager.PERMISSION_GRANTED && writePermission == PackageManager.PERMISSION_GRANTED
         }
-        return isPhotoVideoGranted && isStatusGranted && isWriteGranted
+        return isPhotoVideoGranted && isWriteGranted
     }
 
-    fun askStoragePermission(activity: Activity) {
+    fun askStatusStoragePermission(activity: Activity) {
         // request for the status folder access permission android 11 and above
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && getStoragePathPref(activity).isEmpty()) {
             val storageManager = activity.getSystemService(STORAGE_SERVICE) as StorageManager
@@ -129,7 +137,9 @@ object Functions {
             intent.putExtra("android.provider.extra.SHOW_ADVANCED", true)
             activity.startActivityForResult(intent, higherSdkStoragePermissionCode)
         }
+    }
 
+    fun askStoragePermission(activity: Activity) {
         // request storage access permission for android 13
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ActivityCompat.requestPermissions(

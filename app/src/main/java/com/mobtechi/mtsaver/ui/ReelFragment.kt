@@ -29,7 +29,9 @@ import com.mobtechi.mtsaver.Constants.rapidAPIKeyValue
 import com.mobtechi.mtsaver.Constants.reelDownloadAPI
 import com.mobtechi.mtsaver.Constants.tooManyRequestErrorCode
 import com.mobtechi.mtsaver.Constants.tooManyRequestErrorMessage
+import com.mobtechi.mtsaver.Functions.askStoragePermission
 import com.mobtechi.mtsaver.Functions.checkIsReelLink
+import com.mobtechi.mtsaver.Functions.checkStoragePermission
 import com.mobtechi.mtsaver.Functions.downloadFile
 import com.mobtechi.mtsaver.Functions.getContentType
 import com.mobtechi.mtsaver.Functions.glideImageSet
@@ -46,11 +48,7 @@ import java.util.concurrent.TimeUnit
 class ReelFragment : Fragment() {
 
     enum class ReelKey(val key: String) {
-        Id("id"),
-        Thumbnail("thumbnail"),
-        Media("media"),
-        Type("Type"),
-        Title("title")
+        Id("id"), Thumbnail("thumbnail"), Media("media"), Type("Type"), Title("title")
     }
 
     private var okHttpCall: Call? = null
@@ -215,8 +213,8 @@ class ReelFragment : Fragment() {
                     reelMediaList[currentPosition].getString(ReelKey.Thumbnail.key),
                     imageSlider
                 )
-                if (reelDetails.has(ReelKey.Title.key) &&
-                    !reelDetails.get(ReelKey.Title.key).equals("null")
+                if (reelDetails.has(ReelKey.Title.key) && !reelDetails.get(ReelKey.Title.key)
+                        .equals("null")
                 ) {
                     reelTitle.visibility = visible
                     reelTitle.text = reelDetails.getString(ReelKey.Title.key)
@@ -226,7 +224,7 @@ class ReelFragment : Fragment() {
 
                 val downloadReel: Button = root.findViewById(R.id.downloadReel)
                 downloadReel.setOnClickListener {
-                    if (checkInternet()) {
+                    if (checkInternet() && checkStoragePermission(requireActivity())) {
                         val reelObject = reelMediaList[currentPosition]
                         val reelId = md5(reelObject.getString(ReelKey.Id.key))
                         val downloadLink = reelObject.getString(ReelKey.Media.key)
@@ -234,6 +232,8 @@ class ReelFragment : Fragment() {
                         val fileName = "$reelId.$fileType"
                         downloadFile(requireContext(), fileName, downloadLink)
                         toast(requireContext(), "Downloading.. $fileName")
+                    } else {
+                        askStoragePermission(requireActivity())
                     }
                 }
 

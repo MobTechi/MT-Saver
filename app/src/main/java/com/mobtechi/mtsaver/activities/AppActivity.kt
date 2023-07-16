@@ -5,9 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.MenuItem
-import android.view.View
-import android.widget.Button
-import android.widget.LinearLayout
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -20,15 +17,10 @@ import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.navigation.NavigationView
 import com.mobtechi.mtsaver.Constants.higherSdkStoragePermissionCode
-import com.mobtechi.mtsaver.Constants.lowerSdkStoragePermissionCode
-import com.mobtechi.mtsaver.Functions.askStoragePermission
-import com.mobtechi.mtsaver.Functions.checkStoragePermission
-import com.mobtechi.mtsaver.Functions.getAppPath
 import com.mobtechi.mtsaver.Functions.saveStoragePathPref
 import com.mobtechi.mtsaver.Functions.toast
 import com.mobtechi.mtsaver.R
 import com.mobtechi.mtsaver.databinding.AppActivityBinding
-import java.io.File
 
 
 @Suppress("DEPRECATION")
@@ -65,7 +57,6 @@ class AppActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelected
             R.string.navigation_drawer_open,
             R.string.navigation_drawer_close
         )
-        handleStoragePermission()
     }
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
@@ -98,33 +89,6 @@ class AppActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelected
         }
         drawerLayout.closeDrawer(GravityCompat.START)
         return true
-    }
-
-    private fun handleStoragePermission() {
-        // check the storage permission
-        val storagePermissionLayout: LinearLayout = findViewById(R.id.storage_permission)
-        // checkStoragePermission
-        if (checkStoragePermission(this)) {
-            storagePermissionLayout.visibility = View.GONE
-            // create our app directory
-            if (!File(getAppPath()).exists()) {
-                File(getAppPath()).mkdir()
-            }
-        } else {
-            storagePermissionLayout.visibility = View.VISIBLE
-        }
-
-        // grant access permission button
-        val grantAccessBtn = findViewById<Button>(R.id.grant_access)
-        grantAccessBtn.setOnClickListener {
-            askStoragePermission(this)
-        }
-
-        // privacy policy button
-        val privacyPolicyBtn = findViewById<Button>(R.id.privacy_policy)
-        privacyPolicyBtn.setOnClickListener {
-            showPrivacyPolicyDialog()
-        }
     }
 
     private fun showPrivacyPolicyDialog() {
@@ -162,37 +126,20 @@ class AppActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelected
                     contentResolver.takePersistableUriPermission(uri, flag)
                     // after permission store into preference when android 30 or above
                     saveStoragePathPref(this, uri.toString())
-                    handleStoragePermission()
                     // after permission given load the status fragment
                     val navController = findNavController(R.id.nav_host_fragment_activity_main)
                     navController.navigate(R.id.navigation_status)
                 } else {
                     // dialog when user gave wrong path
-                    showWrongPathDialog()
+                    val builder = AlertDialog.Builder(this)
+                    builder.setCancelable(false).setTitle(getString(R.string.storage_permission))
+                        .setMessage(getString(R.string.wrong_storage_permission_description))
+                        .setPositiveButton(getString(R.string.exit)) { dialogInterface, _ ->
+                            dialogInterface.dismiss()
+                        }
+                    builder.show()
                 }
             }
         }
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == lowerSdkStoragePermissionCode || requestCode == higherSdkStoragePermissionCode) {
-            handleStoragePermission()
-            // after permission given load the status fragment
-            val navController = findNavController(R.id.nav_host_fragment_activity_main)
-            navController.navigate(R.id.navigation_status)
-        }
-    }
-
-    private fun showWrongPathDialog() {
-        val builder = AlertDialog.Builder(this)
-        builder.setCancelable(false).setTitle(getString(R.string.storage_permission))
-            .setMessage(getString(R.string.wrong_storage_permission_description))
-            .setPositiveButton(getString(R.string.exit)) { dialogInterface, _ ->
-                dialogInterface.dismiss()
-            }
-        builder.show()
     }
 }

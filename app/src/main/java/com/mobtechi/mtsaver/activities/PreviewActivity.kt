@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.MenuItem
 import android.view.View
 import android.widget.ImageView
 import android.widget.MediaController
@@ -12,15 +13,19 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.FileProvider
 import com.bumptech.glide.Glide
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.mobtechi.mtsaver.Constants.video
 import com.mobtechi.mtsaver.Constants.videoTypes
 import com.mobtechi.mtsaver.Functions
+import com.mobtechi.mtsaver.Functions.askStoragePermission
+import com.mobtechi.mtsaver.Functions.checkStoragePermission
 import com.mobtechi.mtsaver.Functions.copyFile
 import com.mobtechi.mtsaver.Functions.copyFileUsingInputStream
 import com.mobtechi.mtsaver.Functions.getFileSize
 import com.mobtechi.mtsaver.Functions.shareFile
 import com.mobtechi.mtsaver.R
 import java.io.File
+
 
 @Suppress("DEPRECATION")
 class PreviewActivity : AppCompatActivity() {
@@ -60,26 +65,31 @@ class PreviewActivity : AppCompatActivity() {
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         toolbar.title = fileName
         setSupportActionBar(toolbar)
+        supportActionBar!!.setDisplayHomeAsUpEnabled(true)
 
         // If is status first download it
-        val save = findViewById<ImageView>(R.id.share)
+        val save = findViewById<FloatingActionButton>(R.id.share)
         save.setImageResource(R.drawable.ic_download)
         save.setOnClickListener {
-            val statusPath = Functions.getAppPath() + "/status/"
-            // copy the file using android File() for below android 10
-            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-                copyFile(fileUri, statusPath + fileName)
-                Functions.toast(this, "Status Saved!")
+            if (checkStoragePermission(this)) {
+                val statusPath = Functions.getAppPath() + "/status/"
+                // copy the file using android File() for below android 10
+                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                    copyFile(fileUri, statusPath + fileName)
+                    Functions.toast(this, "Status Saved!")
+                } else {
+                    // copy the file using android content resolver for above android 10
+                    copyFileUsingInputStream(
+                        this,
+                        fileName!!,
+                        fileType!!,
+                        Uri.parse(fileUri),
+                        statusPath
+                    )
+                    Functions.toast(this, "Status Saved!")
+                }
             } else {
-                // copy the file using android content resolver for above android 10
-                copyFileUsingInputStream(
-                    this,
-                    fileName!!,
-                    fileType!!,
-                    Uri.parse(fileUri),
-                    statusPath
-                )
-                Functions.toast(this, "Status Saved!")
+                askStoragePermission(this)
             }
         }
     }
@@ -92,7 +102,9 @@ class PreviewActivity : AppCompatActivity() {
         toolbar.title = fileName
         toolbar.subtitle = fileSize
         setSupportActionBar(toolbar)
-        val share = findViewById<ImageView>(R.id.share)
+        supportActionBar!!.setDisplayHomeAsUpEnabled(true)
+
+        val share = findViewById<FloatingActionButton>(R.id.share)
         share.setOnClickListener {
             val fileUri = FileProvider.getUriForFile(this, "${packageName}.provider", previewFile)
             shareFile(this, previewFile.name, fileUri)
@@ -116,6 +128,14 @@ class PreviewActivity : AppCompatActivity() {
         videoPreview.setOnPreparedListener {
             videoPreview.start()
         }
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == android.R.id.home) {
+            onBackPressed()
+            return true
+        }
+        return super.onOptionsItemSelected(item)
     }
 
     @Deprecated("Deprecated in Java")

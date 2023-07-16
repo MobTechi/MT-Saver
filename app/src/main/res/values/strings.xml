@@ -20,6 +20,8 @@
     // app permission
     <string name="storage_permission">Storage Permission</string>
     <string name="storage_permission_description">To find status media files from your device, MT Saver requires \"Status storage\" permission</string>
+    <string name="storage_path">To discover the status folder, go to Android -> media -> com.whatsapp -> WhatsApp -> Media -> and Open the .Status folder and click the \"Use this folder\" button.</string>
+    <string name="storage_path_note">Note: If you don\'t see the .status folder, because it\'s hidden. Please activate the "show hidden files settings" option in the file settings.</string>
     <string name="wrong_storage_permission_description">You have been granted incorrect storage permission. Just \"Status storage\" permission is required for MT Saver.</string>
     <string name="grant_access">Grant Access</string>
 
